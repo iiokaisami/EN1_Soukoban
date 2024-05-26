@@ -5,44 +5,63 @@ using UnityEngine;
 public class MoveScript : MonoBehaviour
 {
     //完了までにかかる時間
-    //private float timeTaken = 0.2f;
+    private float timeTaken = 0.2f;
 
     //経過時間
-    //private float timeErapsed;
+    private float timeErapsed;
 
     //目的地
-    //private Vector3 destination;
+    private Vector3 destination;
 
     //出発地
-    //private Vector3 origin;
+    private Vector3 origin;
 
-    public void MoveTo(Vector3 destination)
+    public void MoveTo(Vector3 newDestination)
     {
         transform.position = destination;
 
         //経過時間を初期化
-        //timeErapse = 0;
+        timeErapsed = 0;
 
         //移動中の可能性があるので、現在地とpositionに前回移動の目的地を代入
-        //origin = destination;
-        //transform.position = origin;
+        origin = destination;
+        transform.position = origin;
 
         //新しい目的地を代入
-        //destination = newDestination;
+        destination = newDestination;
     }
 
     // Start is called before the first frame update
     void Start()
     {
         //目的地・出発地を現在地で初期化
-        //destination = transform.position;
-        //origin = destination;
+        destination = transform.position;
+        origin = destination;
         
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        //目的地に到着していたら処理しない
+        timeErapsed += Time.deltaTime;
+
+        //経過時間が完了時間の何割かを算出
+        float timeRate = timeErapsed / timeTaken;
+
+        //完了時間を超えるようであれば実行完了時間に丸める
+        if (timeRate > 1) 
+        {
+            timeRate = 1;
+        }
+
+        //イージング（リニア）
+        float easing = timeRate;
+
+        //座標を算出
+        Vector3 currentPosition = Vector3.Lerp(origin, destination, easing);
+
+        //算出した座標をpositionに代入
+        transform.position = currentPosition;
     }
 }

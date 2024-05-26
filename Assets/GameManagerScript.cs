@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManagerScript : MonoBehaviour
 {
@@ -10,28 +11,12 @@ public class GameManagerScript : MonoBehaviour
     public GameObject playerPrefab;
     public GameObject boxPrefab;
     public GameObject goalPrefab;
+    public GameObject particlePrefab;
+    public GameObject WallPrefab;
 
     public GameObject clearText;
 
     // Start is called before the first frame update
-
-
-    /*void PrintArray()
-    {
-        //追加、文字列の宣言と初期化
-        string debugText = "";
-        //変更。二重for文で二次元配列の情報を出力
-        for (int y = 0; y < map.GetLength(0); y++)
-        {
-            for (int x = 0; x < map.GetLength(1); x++)
-            {
-                debugText += map[y, x].ToString() + ",";
-
-            }
-            debugText += "\n";//改行
-        }
-        Debug.Log(debugText);
-    }*/
 
     Vector2Int GetPlayerIndex()
     {
@@ -62,6 +47,7 @@ public class GameManagerScript : MonoBehaviour
     /// <returns></returns>
     bool MoveNumber(string tagName, Vector2Int moveFrom, Vector2Int moveTo)
     {
+
         //移動先が範囲外だったら移動不可
         if (moveTo.y < 0 || moveTo.y >= field.GetLength(0))
         {
@@ -89,12 +75,26 @@ public class GameManagerScript : MonoBehaviour
                  return false;
              }
          }
+
+        //壁なら進まない
+        if (field[moveTo.y, moveTo.x] != null && field[moveTo.y, moveTo.x].tag == "Wall")
+        {
+            return false;
+        }
+
         //プレイヤー・箱かかわらず移動の処理
-      
-        field[moveFrom.y, moveFrom.x].transform.position = IndexToPosition(moveTo); ;
-        
         Vector3 moveToPosition = IndexToPosition(moveTo);
         field[moveFrom.y, moveFrom.x].GetComponent<MoveScript>().MoveTo(moveToPosition);
+
+        //パーティクルの生成
+        for (int i = 0; i < 5; ++i)
+        {
+            Instantiate(
+                particlePrefab,
+                IndexToPosition(moveFrom),
+                Quaternion.identity
+            );
+        }
 
         field[moveTo.y, moveTo.x] = field[moveFrom.y, moveFrom.x];
         field[moveFrom.y, moveFrom.x] = null;
@@ -102,10 +102,11 @@ public class GameManagerScript : MonoBehaviour
         return true;
     }
 
+
     Vector3 IndexToPosition(Vector2Int index)
     {
         return new Vector3(
-            index.x - map.GetLength(1) / 2 + 0.5f, 
+            index.x - map.GetLength(1) / 2 + 0.5f,
             index.y - map.GetLength(0) / 2,
             0
             );
@@ -116,12 +117,12 @@ public class GameManagerScript : MonoBehaviour
         //Vector2Int型の可変長配列の作成
         List<Vector2Int> goals = new List<Vector2Int>();
 
-        for(int y=0;y<map.GetLength(0);y++)
+        for (int y = 0; y < map.GetLength(0); y++)
         {
-            for(int x=0;x<map.GetLength(1);x++)
+            for (int x = 0; x < map.GetLength(1); x++)
             {
                 //格納場所か否かを判断
-                if (map[y,x]==3)
+                if (map[y, x] == 3)
                 {
                     //格納場所のインデックスを控えておく
                     goals.Add(new Vector2Int(x, y));
@@ -149,14 +150,17 @@ public class GameManagerScript : MonoBehaviour
 
     void Start()
     {
+        Screen.SetResolution(1280, 720, false);
 
         //配列の実態の作成と初期化
         map = new int[,] {
-            { 0, 0, 0, 0, 0 } ,
-            { 0, 3, 1, 3, 0 } ,
-            { 0, 0, 2, 0, 0 } ,
-            { 0, 2, 3, 2, 0 } ,
-            { 0, 0, 0, 0, 0 } ,
+            { 4, 4, 4, 4, 4, 4, 4 } ,
+            { 4, 0, 0, 0, 0, 0 ,4 } ,
+            { 4, 0, 3, 1, 3, 0 ,4 } ,
+            { 4, 0, 0, 2, 0, 0 ,4 } ,
+            { 4, 0, 2, 3, 2, 0 ,4 } ,
+            { 4, 0, 0, 0, 0, 0 ,4 } ,
+            { 4, 4, 4, 4, 4, 4, 4 } ,
         };
         field = new GameObject
         [
@@ -172,9 +176,9 @@ public class GameManagerScript : MonoBehaviour
                 {
                     field[y, x] = Instantiate(
                         playerPrefab,
-                        IndexToPosition(new Vector2Int (x,y)),
+                        IndexToPosition(new Vector2Int(x, y)),
                         Quaternion.identity
-                        );
+                       );
                 }
 
                 if (map[y, x] == 2)
@@ -190,6 +194,15 @@ public class GameManagerScript : MonoBehaviour
                 {
                     field[y, x] = Instantiate(
                         goalPrefab,
+                        IndexToPosition(new Vector2Int(x, y)),
+                        Quaternion.identity
+                        );
+                }
+
+                if (map[y, x] == 4)
+                {
+                    field[y, x] = Instantiate(
+                        WallPrefab,
                         IndexToPosition(new Vector2Int(x, y)),
                         Quaternion.identity
                         );
@@ -210,22 +223,24 @@ public class GameManagerScript : MonoBehaviour
             debugText += "\n";//改行
         }
         Debug.Log(debugText);
-
-        //PrintArray();
-
     }
 
     // Update is called once per frame
     void Update()
     {
+        //リセット
+        if (Input.GetKeyDown(KeyCode.R) && !IsCleard())
+        {
+            SceneManager.LoadScene(0);
+        }
+
         //右移動
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
             Vector2Int playerIndex = GetPlayerIndex();
 
             MoveNumber("Player", playerIndex, playerIndex + new Vector2Int(1, 0));
-            //PrintArray();
-
+           
         }
 
         //左移動
@@ -234,8 +249,7 @@ public class GameManagerScript : MonoBehaviour
             Vector2Int playerIndex = GetPlayerIndex();
 
             MoveNumber("Player", playerIndex, playerIndex + new Vector2Int(-1,0));
-            //PrintArray();
-
+            
         }
 
         //上移動
@@ -244,8 +258,7 @@ public class GameManagerScript : MonoBehaviour
             Vector2Int playerIndex = GetPlayerIndex();
 
             MoveNumber("Player", playerIndex, playerIndex + new Vector2Int(0,1));
-            //PrintArray();
-
+          
         }
 
         //下移動
@@ -254,8 +267,7 @@ public class GameManagerScript : MonoBehaviour
             Vector2Int playerIndex = GetPlayerIndex();
 
             MoveNumber("Player", playerIndex, playerIndex + new Vector2Int(0, -1));
-            //PrintArray();
-
+            
         }
 
         if(IsCleard())
